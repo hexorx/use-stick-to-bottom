@@ -11,12 +11,8 @@ export interface VueSpringAnimation {
 export type VueAnimation = VueScrollBehaviorExtended | VueSpringAnimation;
 
 export interface VueStickToBottomState {
-  scrollTop: number;
   lastScrollTop?: number;
   ignoreScrollToTop?: number;
-  targetScrollTop: number;
-  calculatedTargetScrollTop: number;
-  scrollDifference: number;
   resizeDifference: number;
 
   animation?: {
@@ -27,10 +23,6 @@ export interface VueStickToBottomState {
   lastTick?: number;
   velocity: number;
   accumulated: number;
-
-  escapedFromLock: boolean;
-  isAtBottom: boolean;
-  isNearBottom: boolean;
 
   resizeObserver?: ResizeObserver;
 }

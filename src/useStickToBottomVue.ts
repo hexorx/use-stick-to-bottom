@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onUnmounted, reactive, ref, watch } from 'vue';
 import type {
   VueAnimation,
   VueScrollToBottom,
@@ -101,73 +101,73 @@ export function useStickToBottom(
   };
 
   const setIsAtBottom = (value: boolean) => {
-    state.isAtBottom = value;
     isAtBottom.value = value;
   };
 
   const setEscapedFromLock = (value: boolean) => {
-    state.escapedFromLock = value;
     escapedFromLock.value = value;
   };
 
   const setIsNearBottom = (value: boolean) => {
-    state.isNearBottom = value;
     isNearBottom.value = value;
   };
 
   const state = reactive<VueStickToBottomState>({
-    escapedFromLock: escapedFromLock.value,
-    isAtBottom: isAtBottom.value,
-    isNearBottom: isNearBottom.value,
     resizeDifference: 0,
     accumulated: 0,
     velocity: 0,
-
-    get scrollTop() {
-      return scrollRef.value?.scrollTop ?? 0;
-    },
-    set scrollTop(scrollTop: number) {
-      if (scrollRef.value) {
-        scrollRef.value.scrollTop = scrollTop;
-        state.ignoreScrollToTop = scrollRef.value.scrollTop;
-      }
-    },
-
-    get targetScrollTop() {
-      if (!scrollRef.value || !contentRef.value) {
-        return 0;
-      }
-
-      return scrollRef.value.scrollHeight - 1 - scrollRef.value.clientHeight;
-    },
-
-    get calculatedTargetScrollTop() {
-      if (!scrollRef.value || !contentRef.value) {
-        return 0;
-      }
-
-      const { targetScrollTop } = this;
-
-      if (!optionsRef.value.targetScrollTop) {
-        return targetScrollTop;
-      }
-
-      return Math.max(
-        Math.min(
-          optionsRef.value.targetScrollTop(targetScrollTop, {
-            scrollElement: scrollRef.value,
-            contentElement: contentRef.value,
-          }),
-          targetScrollTop
-        ),
-        0
-      );
-    },
-
-    get scrollDifference() {
-      return this.calculatedTargetScrollTop - this.scrollTop;
-    },
+    ignoreScrollToTop: undefined,
+    lastScrollTop: undefined,
+    lastTick: undefined,
+    animation: undefined,
+    resizeObserver: undefined,
   });
+
+  // Helper functions instead of getters for better performance
+  const getScrollTop = (): number => {
+    return scrollRef.value?.scrollTop ?? 0;
+  };
+
+  const setScrollTop = (scrollTop: number) => {
+    if (scrollRef.value) {
+      scrollRef.value.scrollTop = scrollTop;
+      state.ignoreScrollToTop = scrollRef.value.scrollTop;
+    }
+  };
+
+  const getTargetScrollTop = (): number => {
+    if (!scrollRef.value || !contentRef.value) {
+      return 0;
+    }
+    return scrollRef.value.scrollHeight - 1 - scrollRef.value.clientHeight;
+  };
+
+  const getCalculatedTargetScrollTop = (): number => {
+    if (!scrollRef.value || !contentRef.value) {
+      return 0;
+    }
+
+    const targetScrollTop = getTargetScrollTop();
+
+    if (!optionsRef.value.targetScrollTop) {
+      return targetScrollTop;
+    }
+
+    return Math.max(
+      Math.min(
+        optionsRef.value.targetScrollTop(targetScrollTop, {
+          scrollElement: scrollRef.value,
+          contentElement: contentRef.value,
+        }),
+        targetScrollTop
+      ),
+      0
+    );
+  };
+
+  const getScrollDifference = (): number => {
+    return getCalculatedTargetScrollTop() - getScrollTop();
+  };
 
   const scrollToBottom: VueScrollToBottom = (scrollOptions = {}) => {
     if (typeof scrollOptions === 'string') {
@@ -183,7 +183,7 @@ export function useStickToBottom(
     const { ignoreEscapes = false } = scrollOptions;
 
     let durationElapsed: number;
-    let startTarget = state.calculatedTargetScrollTop;
+    let startTarget = getCalculatedTargetScrollTop();
 
     if (scrollOptions.duration instanceof Promise) {
       scrollOptions.duration.finally(() => {
@@ -194,23 +194,24 @@ export function useStickToBottom(
     }
 
     const next = async (): Promise<boolean> => {
-      return new Promise<boolean>((resolve) => {
+      const promise = new Promise<boolean>((resolve) => {
         requestAnimationFrame(() => {
-          if (!state.isAtBottom) {
+          if (!isAtBottom.value) {
             state.animation = undefined;
             resolve(false);
             return;
           }
 
-          const { scrollTop } = state;
+          const scrollTop = getScrollTop();
           const tick = performance.now();
           const tickDelta =
             (tick - (state.lastTick ?? tick)) / SIXTY_FPS_INTERVAL_MS;
 
-          if (!state.animation) {
-            const promise = next();
-            state.animation = { behavior, promise, ignoreEscapes };
-          }
+          state.animation = state.animation || {
+            behavior,
+            promise,
+            ignoreEscapes,
+          };
 
           if (state.animation.behavior === behavior) {
             state.lastTick = tick;
@@ -227,23 +228,23 @@ export function useStickToBottom(
           }
 
           if (
-            scrollTop < Math.min(startTarget, state.calculatedTargetScrollTop)
+            scrollTop < Math.min(startTarget, getCalculatedTargetScrollTop())
           ) {
             if (state.animation?.behavior === behavior) {
               if (behavior === 'instant') {
-                state.scrollTop = state.calculatedTargetScrollTop;
+                setScrollTop(getCalculatedTargetScrollTop());
                 next().then(resolve);
                 return;
               }
 
               state.velocity =
                 (behavior.damping * state.velocity +
-                  behavior.stiffness * state.scrollDifference) /
+                  behavior.stiffness * getScrollDifference()) /
                 behavior.mass;
               state.accumulated += state.velocity * tickDelta;
-              state.scrollTop += state.accumulated;
+              setScrollTop(getScrollTop() + state.accumulated);
 
-              if (state.scrollTop !== scrollTop) {
+              if (getScrollTop() !== scrollTop) {
                 state.accumulated = 0;
               }
             }
@@ -253,7 +254,7 @@ export function useStickToBottom(
           }
 
           if (durationElapsed > Date.now()) {
-            startTarget = state.calculatedTargetScrollTop;
+            startTarget = getCalculatedTargetScrollTop();
             next().then(resolve);
             return;
           }
@@ -261,7 +262,7 @@ export function useStickToBottom(
           state.animation = undefined;
 
           // If we're still below the target, queue up another scroll
-          if (state.scrollTop < state.calculatedTargetScrollTop) {
+          if (getScrollTop() < getCalculatedTargetScrollTop()) {
             const result = scrollToBottom({
               animation: mergeAnimations(
                 optionsRef.value,
@@ -278,9 +279,11 @@ export function useStickToBottom(
             return;
           }
 
-          resolve(state.isAtBottom);
+          resolve(isAtBottom.value);
         });
-      }).then((result) => {
+      });
+
+      promise.then((result) => {
         requestAnimationFrame(() => {
           if (!state.animation) {
             state.lastTick = undefined;
@@ -290,6 +293,8 @@ export function useStickToBottom(
 
         return result;
       });
+
+      return promise;
     };
 
     if (scrollOptions.wait !== true) {
@@ -307,6 +312,8 @@ export function useStickToBottom(
     setEscapedFromLock(true);
     setIsAtBottom(false);
     state.animation = undefined;
+    state.velocity = 0;
+    state.accumulated = 0;
   };
 
   const handleScroll = (event: Event) => {
@@ -314,8 +321,9 @@ export function useStickToBottom(
       return;
     }
 
-    const { scrollTop, ignoreScrollToTop } = state;
-    let { lastScrollTop = scrollTop } = state;
+    const scrollTop = getScrollTop();
+    const ignoreScrollToTop = state.ignoreScrollToTop;
+    let lastScrollTop = state.lastScrollTop ?? scrollTop;
 
     state.lastScrollTop = scrollTop;
     state.ignoreScrollToTop = undefined;
@@ -324,7 +332,7 @@ export function useStickToBottom(
       lastScrollTop = ignoreScrollToTop;
     }
 
-    setIsNearBottom(state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX);
+    setIsNearBottom(getScrollDifference() <= STICK_TO_BOTTOM_OFFSET_PX);
 
     // Use setTimeout to handle potential race conditions with ResizeObserver
     setTimeout(() => {
@@ -342,7 +350,7 @@ export function useStickToBottom(
       const isScrollingUp = scrollTop < lastScrollTop;
 
       if (state.animation?.ignoreEscapes) {
-        state.scrollTop = lastScrollTop;
+        setScrollTop(lastScrollTop);
         return;
       }
 
@@ -356,8 +364,8 @@ export function useStickToBottom(
       }
 
       if (
-        !state.escapedFromLock &&
-        state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX
+        !escapedFromLock.value &&
+        getScrollDifference() <= STICK_TO_BOTTOM_OFFSET_PX
       ) {
         setIsAtBottom(true);
       }
@@ -423,11 +431,11 @@ export function useStickToBottom(
         state.resizeDifference = difference;
 
         // Check for overscroll and adjust
-        if (state.scrollTop > state.targetScrollTop) {
-          state.scrollTop = state.targetScrollTop;
+        if (getScrollTop() > getTargetScrollTop()) {
+          setScrollTop(getTargetScrollTop());
         }
 
-        setIsNearBottom(state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX);
+        setIsNearBottom(getScrollDifference() <= STICK_TO_BOTTOM_OFFSET_PX);
 
         if (difference >= 0) {
           // Positive resize: scroll to bottom if already at bottom
@@ -447,7 +455,7 @@ export function useStickToBottom(
           });
         } else {
           // Negative resize: check if we're near bottom
-          if (state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX) {
+          if (getScrollDifference() <= STICK_TO_BOTTOM_OFFSET_PX) {
             setEscapedFromLock(false);
             setIsAtBottom(true);
           }
@@ -472,6 +480,10 @@ export function useStickToBottom(
 
   onUnmounted(() => {
     state.resizeObserver?.disconnect();
+    state.resizeObserver = undefined;
+    state.animation = undefined;
+    state.velocity = 0;
+    state.accumulated = 0;
     scrollRef.value?.removeEventListener('scroll', handleScroll);
     scrollRef.value?.removeEventListener('wheel', handleWheel);
   });
@@ -481,7 +493,7 @@ export function useStickToBottom(
     scrollRef,
     scrollToBottom,
     stopScroll,
-    isAtBottom,
+    isAtBottom: computed(() => isAtBottom.value || isNearBottom.value),
     isNearBottom,
     escapedFromLock,
     state,
