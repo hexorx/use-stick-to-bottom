@@ -6,5 +6,5 @@
     "moduleResolution": "Bundler",
     "isolatedDeclarations": false
   },
-  "include": ["demo"]
+  "include": ["demo", "src/vue-components.d.ts"]
 }
