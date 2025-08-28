@@ -1,9 +1,9 @@
 import { inject } from 'vue';
-import type { VueStickToBottomContext } from './types.js';
-import { VueStickToBottomKey } from './types.js';
+import type { StickToBottomContext } from './types.js';
+import { StickToBottomKey } from './types.js';
 
-export function useStickToBottomContext(): VueStickToBottomContext {
-  const ctx = inject<VueStickToBottomContext | null>(VueStickToBottomKey, null);
+export function useStickToBottomContext(): StickToBottomContext {
+  const ctx = inject<StickToBottomContext | null>(StickToBottomKey, null);
   if (!ctx) {
     throw new Error(
       'useStickToBottomContext must be used within a StickToBottom component'

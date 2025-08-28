@@ -30,7 +30,7 @@ import { type PropType } from 'vue';
 import {
   StickToBottomContent,
   useStickToBottomContext,
-} from '../../src/index.js';
+} from '../src/index.js';
 import Message from './Message.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
 import type { MessageParts } from './useFakeMessages';

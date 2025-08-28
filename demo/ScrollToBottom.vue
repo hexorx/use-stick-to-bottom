@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { useStickToBottomContext } from '../../src/index';
+import { useStickToBottomContext } from '../src/index';
 
 const { isAtBottom, scrollToBottom } = useStickToBottomContext();
 </script>

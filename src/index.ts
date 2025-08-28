@@ -1,7 +1,6 @@
-export * from './StickToBottom.js';
+// Primary Vue exports with standard names
+export { default as StickToBottom } from './StickToBottom.vue';
 export { default as StickToBottomContent } from './StickToBottomContent.vue';
-export { default as StickToBottom } from './StickToBottomVue.vue';
-export * from './types.js';
-export * from './useStickToBottom.js';
+export { useStickToBottom } from './useStickToBottom.js';
 export { useStickToBottomContext } from './useStickToBottomContext.js';
-export { useStickToBottom as useStickToBottomVue } from './useStickToBottomVue.js';
+export * from './types.js';

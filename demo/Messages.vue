@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { type PropType } from 'vue';
-import { StickToBottom } from '../../src/index';
+import { StickToBottom } from '../src/index';
 import MessagesContent from './MessagesContent.vue';
 import { useFakeMessages } from './useFakeMessages';
 

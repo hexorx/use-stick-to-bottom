@@ -7,30 +7,30 @@
 <script setup lang="ts">
 import { type PropType, onMounted, provide, ref } from 'vue';
 import type {
-  VueGetTargetScrollTop,
-  VueStickToBottomContext,
-  VueStickToBottomInstance,
-  VueStickToBottomOptions,
+  GetTargetScrollTop,
+  StickToBottomContext,
+  StickToBottomInstance,
+  StickToBottomOptions,
 } from './types';
-import { VueStickToBottomKey } from './types';
-import { useStickToBottom } from './useStickToBottomVue';
+import { StickToBottomKey } from './types';
+import { useStickToBottom } from './useStickToBottom';
 
 const props = defineProps({
-  contextRef: Function as PropType<(ctx: VueStickToBottomContext) => void>,
-  instance: Object as PropType<VueStickToBottomInstance>,
-  resize: [String, Object] as PropType<VueStickToBottomOptions['resize']>,
+  contextRef: Function as PropType<(ctx: StickToBottomContext) => void>,
+  instance: Object as PropType<StickToBottomInstance>,
+  resize: [String, Object] as PropType<StickToBottomOptions['resize']>,
   initial: [String, Object, Boolean] as PropType<
-    VueStickToBottomOptions['initial']
+    StickToBottomOptions['initial']
   >,
-  mass: Number as PropType<VueStickToBottomOptions['mass']>,
-  damping: Number as PropType<VueStickToBottomOptions['damping']>,
-  stiffness: Number as PropType<VueStickToBottomOptions['stiffness']>,
-  targetScrollTop: Function as PropType<VueGetTargetScrollTop>,
+  mass: Number as PropType<StickToBottomOptions['mass']>,
+  damping: Number as PropType<StickToBottomOptions['damping']>,
+  stiffness: Number as PropType<StickToBottomOptions['stiffness']>,
+  targetScrollTop: Function as PropType<GetTargetScrollTop>,
 });
 
-const customTargetScrollTop = ref<VueGetTargetScrollTop | null>(null);
+const customTargetScrollTop = ref<GetTargetScrollTop | null>(null);
 
-const targetScrollTop: VueGetTargetScrollTop = (target, elements) => {
+const targetScrollTop: GetTargetScrollTop = (target, elements) => {
   const get = customTargetScrollTop.value ?? props.targetScrollTop;
   return get ? get(target, elements) : target;
 };
@@ -46,7 +46,7 @@ const defaultInstance = useStickToBottom({
 
 const inst = props.instance ?? defaultInstance;
 
-const context: VueStickToBottomContext = {
+const context: StickToBottomContext = {
   scrollRef: inst.scrollRef,
   contentRef: inst.contentRef,
   scrollToBottom: inst.scrollToBottom,
@@ -56,14 +56,14 @@ const context: VueStickToBottomContext = {
   get targetScrollTop() {
     return customTargetScrollTop.value;
   },
-  set targetScrollTop(v: VueGetTargetScrollTop | null) {
+  set targetScrollTop(v: GetTargetScrollTop | null) {
     customTargetScrollTop.value = v;
   },
   state: inst.state,
 };
 
 // Provide the context to child components
-provide(VueStickToBottomKey, context);
+provide(StickToBottomKey, context);
 
 if (props.contextRef) {
   props.contextRef(context);

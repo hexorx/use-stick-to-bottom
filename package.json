@@ -1,8 +1,8 @@
 {
   "name": "use-stick-to-bottom",
   "author": "Sam Denty <samddenty@gmail.com> (http://samdenty.com/)",
-  "description": "A lightweight library for React and Vue 3 intended for AI chat applications, providing smooth scroll-to-bottom functionality with spring animations",
-  "version": "1.1.1",
+  "description": "A lightweight Vue 3 library intended for AI chat applications, providing smooth scroll-to-bottom functionality with spring animations",
+  "version": "2.0.0",
   "type": "module",
   "files": [
     "dist"
@@ -13,8 +13,6 @@
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "dev:react": "vite --config vite.config.react.ts",
-    "dev:vue": "vite --config vite.config.vue.ts",
     "build": "rm -rf dist > /dev/null 2>&1; tsc -b",
     "prepublishOnly": "pnpm build",
     "lint": "eslint src demo --ext .ts,.tsx,.vue",
@@ -27,7 +25,6 @@
     "url": "https://github.com/stackblitz/use-stick-to-bottom.git"
   },
   "peerDependencies": {
-    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {
@@ -35,11 +32,8 @@
     "@eslint/js": "^9.34.0",
     "@iconify-json/ph": "^1.2.2",
     "@tailwindcss/typography": "^0.5.16",
-    "@types/react": "^18.3.20",
-    "@types/react-dom": "^18.3.5",
     "@typescript-eslint/eslint-plugin": "^8.41.0",
     "@typescript-eslint/parser": "^8.41.0",
-    "@vitejs/plugin-react": "^4.3.4",
     "@vitejs/plugin-vue": "^5.2.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.34.0",
@@ -50,8 +44,6 @@
     "lorem-ipsum": "^2.0.8",
     "postcss": "^8.5.3",
     "prettier": "^3.6.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
     "vite": "^5.4.15",

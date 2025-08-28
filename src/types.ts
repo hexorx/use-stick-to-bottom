@@ -1,22 +1,22 @@
 import type { Ref } from 'vue';
 
-export type VueScrollBehaviorExtended = ScrollBehavior | 'instant';
+export type ScrollBehaviorExtended = ScrollBehavior | 'instant';
 
-export interface VueSpringAnimation {
+export interface SpringAnimation {
   damping?: number;
   stiffness?: number;
   mass?: number;
 }
 
-export type VueAnimation = VueScrollBehaviorExtended | VueSpringAnimation;
+export type Animation = ScrollBehaviorExtended | SpringAnimation;
 
-export interface VueStickToBottomState {
+export interface StickToBottomState {
   lastScrollTop?: number;
   ignoreScrollToTop?: number;
   resizeDifference: number;
 
   animation?: {
-    behavior: 'instant' | Required<VueSpringAnimation>;
+    behavior: 'instant' | Required<SpringAnimation>;
     ignoreEscapes: boolean;
     promise: Promise<boolean>;
   };
@@ -27,53 +27,53 @@ export interface VueStickToBottomState {
   resizeObserver?: ResizeObserver;
 }
 
-export type VueGetTargetScrollTop = (
+export type GetTargetScrollTop = (
   targetScrollTop: number,
   elements: { scrollElement: HTMLElement; contentElement: HTMLElement }
 ) => number;
 
-export interface VueStickToBottomOptions extends VueSpringAnimation {
-  resize?: VueAnimation;
-  initial?: VueAnimation | boolean;
-  targetScrollTop?: VueGetTargetScrollTop;
+export interface StickToBottomOptions extends SpringAnimation {
+  resize?: Animation;
+  initial?: Animation | boolean;
+  targetScrollTop?: GetTargetScrollTop;
 }
 
-export type VueScrollToBottomOptions =
-  | VueScrollBehaviorExtended
+export type ScrollToBottomOptions =
+  | ScrollBehaviorExtended
   | {
-      animation?: VueAnimation;
+      animation?: Animation;
       wait?: boolean | number;
       ignoreEscapes?: boolean;
       preserveScrollPosition?: boolean;
       duration?: number | Promise<void>;
     };
 
-export type VueScrollToBottom = (
-  options?: VueScrollToBottomOptions
+export type ScrollToBottom = (
+  options?: ScrollToBottomOptions
 ) => Promise<boolean> | boolean;
-export type VueStopScroll = () => void;
+export type StopScroll = () => void;
 
-export interface VueStickToBottomInstance {
+export interface StickToBottomInstance {
   contentRef: Ref<HTMLElement | null>;
   scrollRef: Ref<HTMLElement | null>;
-  scrollToBottom: VueScrollToBottom;
-  stopScroll: VueStopScroll;
+  scrollToBottom: ScrollToBottom;
+  stopScroll: StopScroll;
   isAtBottom: Ref<boolean>;
   isNearBottom: Ref<boolean>;
   escapedFromLock: Ref<boolean>;
-  state: VueStickToBottomState;
+  state: StickToBottomState;
 }
 
-export interface VueStickToBottomContext {
+export interface StickToBottomContext {
   contentRef: Ref<HTMLElement | null>;
   scrollRef: Ref<HTMLElement | null>;
-  scrollToBottom: VueScrollToBottom;
-  stopScroll: VueStopScroll;
+  scrollToBottom: ScrollToBottom;
+  stopScroll: StopScroll;
   isAtBottom: Ref<boolean>;
   escapedFromLock: Ref<boolean>;
-  get targetScrollTop(): VueGetTargetScrollTop | null;
-  set targetScrollTop(v: VueGetTargetScrollTop | null);
-  state: VueStickToBottomState;
+  get targetScrollTop(): GetTargetScrollTop | null;
+  set targetScrollTop(v: GetTargetScrollTop | null);
+  state: StickToBottomState;
 }
 
-export const VueStickToBottomKey = Symbol('VueStickToBottom') as symbol;
+export const StickToBottomKey = Symbol('StickToBottom') as symbol;
