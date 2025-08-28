@@ -4,9 +4,9 @@
 
 [![npm version](https://img.shields.io/npm/v/use-stick-to-bottom.svg?style=flat-square)](https://www.npmjs.com/package/use-stick-to-bottom)
 [![npm downloads](https://img.shields.io/npm/dm/use-stick-to-bottom.svg?style=flat-square)](https://www.npmjs.com/package/use-stick-to-bottom)
-[![Demo](https://img.shields.io/badge/StackBlitz-Demo-blue.svg?style=flat-square)](https://stackblitz.com/~/github.com/samdenty/use-stick-to-bottom?file=demo/Demo.tsx)
+[![Demo](https://img.shields.io/badge/StackBlitz-Demo-blue.svg?style=flat-square)](https://stackblitz.com/~/github.com/samdenty/use-stick-to-bottom?file=demo/Demo.vue)
 
-A lightweight **zero-dependency** library for both **React** and **Vue 3** that automatically sticks to the bottom of containers and smoothly animates content to keep its visual position on screen whilst new content is being added.
+A lightweight **zero-dependency** library for **Vue 3** that automatically sticks to the bottom of containers and smoothly animates content to keep its visual position on screen whilst new content is being added.
 
 ## Features
 
@@ -24,69 +24,35 @@ A lightweight **zero-dependency** library for both **React** and **Vue 3** that 
 
 # Usage
 
-## React
-
-### `<StickToBottom>` Component
-
-```jsx
-import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
-
-function Chat() {
-  return (
-    <StickToBottom
-      className="h-[50vh] relative"
-      resize="smooth"
-      initial="smooth"
-    >
-      <StickToBottom.Content className="flex flex-col gap-4">
-        {messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-      </StickToBottom.Content>
-
-      <ScrollToBottom />
-
-      {/* This component uses `useStickToBottomContext` to scroll to bottom when the user enters a message */}
-      <ChatBox />
-    </StickToBottom>
-  );
-}
-
-function ScrollToBottom() {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-
-  return (
-    !isAtBottom && (
-      <button
-        className="absolute i-ph-arrow-circle-down-fill text-4xl rounded-lg left-[50%] translate-x-[-50%] bottom-0"
-        onClick={() => scrollToBottom()}
-      />
-    )
-  );
-}
-```
-
-### `useStickToBottom` Hook
-
-```jsx
-import { useStickToBottom } from 'use-stick-to-bottom';
-
-function Component() {
-  const { scrollRef, contentRef } = useStickToBottom();
-
-  return (
-    <div style={{ overflow: 'auto' }} ref={scrollRef}>
-      <div ref={contentRef}>
-        {messages.map((message) => (
-          <Message key={message.id} message={message} />
-        ))}
-      </div>
-    </div>
-  );
-}
-```
-
 ## Vue 3
+
+### Import Options
+
+The library provides two import paths for flexibility:
+
+**Main Import (Recommended):**
+
+```typescript
+import {
+  StickToBottom,
+  StickToBottomContent,
+  useStickToBottom,
+  useStickToBottomContext,
+} from 'use-stick-to-bottom';
+```
+
+**Vue-Specific Import:**
+
+```typescript
+import {
+  StickToBottom,
+  StickToBottomContent,
+  useStickToBottom,
+  useStickToBottomContext,
+} from 'use-stick-to-bottom/vue';
+```
+
+Both import paths provide the same functionality, but the Vue-specific path is useful for projects that want to be explicit about their framework usage.
 
 ### `<StickToBottom>` Component
 
@@ -94,10 +60,20 @@ function Component() {
 <template>
   <StickToBottom class="h-[50vh] relative" resize="smooth" initial="smooth">
     <StickToBottomContent class="flex flex-col gap-4">
-      <Message v-for="message in messages" :key="message.id" :message="message" />
+      <Message
+        v-for="message in messages"
+        :key="message.id"
+        :message="message"
+      />
     </StickToBottomContent>
 
-    <ScrollToBottom />
+    <button
+      v-if="!isAtBottom"
+      class="absolute bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium left-[50%] translate-x-[-50%] bottom-0 shadow-lg"
+      @click="scrollToBottom()"
+    >
+      ↓ Scroll to Bottom
+    </button>
 
     <!-- This component uses useStickToBottomContext to scroll to bottom when the user enters a message -->
     <ChatBox />
@@ -111,37 +87,28 @@ import {
   useStickToBottomContext,
 } from 'use-stick-to-bottom';
 
-const ScrollToBottom = () => {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-
-  return (
-    !isAtBottom && (
-      <button
-        class="absolute bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium left-[50%] translate-x-[-50%] bottom-0 shadow-lg"
-        @click="scrollToBottom()"
-      >
-        ↓ Scroll to Bottom
-      </button>
-    )
-  );
-};
+const { isAtBottom, scrollToBottom } = useStickToBottomContext();
 </script>
 ```
 
-### `useStickToBottomVue` Composable
+### `useStickToBottom` Composable
 
 ```vue
 <template>
   <div style="overflow: auto" ref="scrollRef">
     <div ref="contentRef">
-      <Message v-for="message in messages" :key="message.id" :message="message" />
+      <Message
+        v-for="message in messages"
+        :key="message.id"
+        :message="message"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useStickToBottomVue } from 'use-stick-to-bottom';
+import { useStickToBottom } from 'use-stick-to-bottom';
 
-const { scrollRef, contentRef } = useStickToBottomVue();
+const { scrollRef, contentRef } = useStickToBottom();
 </script>
 ```

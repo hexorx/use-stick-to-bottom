@@ -1,4 +1,4 @@
-import type { Ref } from 'vue';
+import type { InjectionKey, Ref } from 'vue';
 
 export type ScrollBehaviorExtended = ScrollBehavior | 'instant';
 
@@ -76,4 +76,5 @@ export interface StickToBottomContext {
   state: StickToBottomState;
 }
 
-export const StickToBottomKey = Symbol('StickToBottom') as symbol;
+export const StickToBottomKey: InjectionKey<StickToBottomContext> =
+  Symbol('StickToBottom');

@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import { useStickToBottomContext } from './useStickToBottomContext.js';
 
+defineOptions({ inheritAttrs: false });
+
 const context = useStickToBottomContext();
 // Destructure the refs so Vue's template ref system can work with them
 const { scrollRef, contentRef } = context;

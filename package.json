@@ -10,10 +10,28 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "import": "./dist/vue.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "vue": [
+        "./dist/vue.d.ts"
+      ]
+    }
+  },
   "sideEffects": false,
   "scripts": {
     "dev": "vite",
-    "build": "rm -rf dist > /dev/null 2>&1; tsc -b",
+    "build": "vite build",
+    "type-check": "vue-tsc --noEmit -p tsconfig.app.json",
     "prepublishOnly": "pnpm build",
     "lint": "eslint src demo --ext .ts,.tsx,.vue",
     "lint:fix": "eslint src demo --ext .ts,.tsx,.vue --fix",
@@ -49,7 +67,8 @@
     "vite": "^5.4.15",
     "vite-plugin-dts": "^4.5.3",
     "vue": "^3.5.20",
-    "vue-eslint-parser": "^10.2.0"
+    "vue-eslint-parser": "^10.2.0",
+    "vue-tsc": "^3.0.6"
   },
   "packageManager": "pnpm@9.12.3+sha512.cce0f9de9c5a7c95bef944169cc5dfe8741abfb145078c0d508b868056848a87c81e626246cb60967cbd7fd29a6c062ef73ff840d96b3c86c40ac92cf4a813ee"
 }

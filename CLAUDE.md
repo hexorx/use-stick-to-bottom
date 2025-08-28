@@ -50,12 +50,25 @@ The library exports both React and Vue 3 implementations:
 
 ### Export Strategy
 
-The `src/index.ts` file exports both frameworks:
+The library uses framework-specific subpath exports to avoid naming conflicts and enable tree-shaking:
 
-- React components and hooks (original implementation)
+**Main Export (`src/index.ts`):**
+
 - Vue components as `StickToBottom` and `StickToBottomContent`
-- Vue hook as `useStickToBottomVue` (aliased to avoid naming conflicts)
+- Vue hook as `useStickToBottom` (standard name, no aliasing)
+- Vue context hook as `useStickToBottomContext`
 - Shared types from `types.ts`
+
+**Vue-Specific Export (`src/vue.ts`):**
+
+- Same exports as main, but explicitly Vue-focused
+- Accessible via `"yourpkg/vue"` import path
+
+**Package.json Configuration:**
+
+- `exports` field maps `"."` to main bundle and `"./vue"` to Vue-specific bundle
+- `typesVersions` provides TypeScript support for subpath imports
+- Both bundles are generated during build process
 
 ### Key Architectural Patterns
 
