@@ -16,20 +16,31 @@
     <ScrollToBottom />
   </div>
   <div class="flex justify-center pt-4">
-    <button class="rounded bg-slate-600 text-white px-4 py-2" @click="stopScroll()">Stop Scroll</button>
+    <button
+      class="rounded bg-slate-600 text-white px-4 py-2"
+      @click="handleStopScroll"
+    >
+      Stop Scroll
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { type PropType } from 'vue';
-import { StickToBottomContent, useStickToBottomContext } from '../../src/StickToBottomVue';
-import ScrollToBottom from './ScrollToBottom.vue';
+import {
+  StickToBottomContent,
+  useStickToBottomContext,
+} from '../../src/index.js';
 import Message from './Message.vue';
+import ScrollToBottom from './ScrollToBottom.vue';
 import type { MessageParts } from './useFakeMessages';
 
 const props = defineProps({
   messages: { type: Array as PropType<MessageParts[]>, required: true },
 });
 
-const { stopScroll } = useStickToBottomContext();
+const handleStopScroll = () => {
+  const { stopScroll } = useStickToBottomContext();
+  stopScroll();
+};
 </script>

@@ -1,121 +1,136 @@
-import { type Ref, onMounted, onUnmounted, reactive, ref } from "vue";
-
-export interface StickToBottomState {
-	scrollTop: number;
-	targetScrollTop: number;
-	scrollDifference: number;
-	resizeDifference: number;
-	escapedFromLock: boolean;
-	isAtBottom: boolean;
-	isNearBottom: boolean;
-}
-
-export type GetTargetScrollTop = (
-	targetScrollTop: number,
-	elements: { scrollElement: HTMLElement; contentElement: HTMLElement },
-) => number;
-
-export interface StickToBottomOptions {
-	resize?: ScrollBehavior;
-	initial?: ScrollBehavior | boolean;
-	mass?: number;
-	damping?: number;
-	stiffness?: number;
-	targetScrollTop?: GetTargetScrollTop;
-}
-
-export type ScrollToBottom = (options?: ScrollToBottomOptions) => boolean;
-export type StopScroll = () => void;
-
-export interface ScrollToBottomOptions {
-	animation?: ScrollBehavior;
-	preserveScrollPosition?: boolean;
-	wait?: boolean | number;
-}
+import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import type {
+  VueScrollToBottomOptions,
+  VueStickToBottomInstance,
+  VueStickToBottomOptions,
+  VueStickToBottomState,
+} from './types.js';
 
 const STICK_TO_BOTTOM_OFFSET_PX = 70;
 
-export interface StickToBottomInstance {
-	contentRef: Ref<HTMLElement | null>;
-	scrollRef: Ref<HTMLElement | null>;
-	scrollToBottom: ScrollToBottom;
-	stopScroll: StopScroll;
-	isAtBottom: Ref<boolean>;
-	escapedFromLock: Ref<boolean>;
-	state: StickToBottomState;
-}
-
 export function useStickToBottom(
-	options: StickToBottomOptions = {},
-): StickToBottomInstance {
-	const scrollRef = ref<HTMLElement | null>(null);
-	const contentRef = ref<HTMLElement | null>(null);
+  options: VueStickToBottomOptions = {}
+): VueStickToBottomInstance {
+  const scrollRef = ref<HTMLElement | null>(null);
+  const contentRef = ref<HTMLElement | null>(null);
 
-	const isAtBottom = ref(options.initial !== false);
-	const escapedFromLock = ref(false);
-	const isNearBottom = ref(false);
+  const isAtBottom = ref(options.initial !== false);
+  const escapedFromLock = ref(false);
+  const isNearBottom = ref(false);
 
-	const state = reactive<StickToBottomState>({
-		scrollTop: 0,
-		targetScrollTop: 0,
-		scrollDifference: 0,
-		resizeDifference: 0,
-		escapedFromLock: escapedFromLock.value,
-		isAtBottom: isAtBottom.value,
-		isNearBottom: isNearBottom.value,
-	});
+  const state = reactive<VueStickToBottomState>({
+    scrollTop: 0,
+    targetScrollTop: 0,
+    scrollDifference: 0,
+    resizeDifference: 0,
+    escapedFromLock: escapedFromLock.value,
+    isAtBottom: isAtBottom.value,
+    isNearBottom: isNearBottom.value,
+  });
 
-	function updateState(el: HTMLElement) {
-		const bottom = el.scrollHeight - el.clientHeight;
-		const diff = bottom - el.scrollTop;
-		state.scrollTop = el.scrollTop;
-		state.isAtBottom = diff <= 0;
-		isAtBottom.value = state.isAtBottom;
-		state.isNearBottom = diff <= STICK_TO_BOTTOM_OFFSET_PX;
-		isNearBottom.value = state.isNearBottom;
-	}
+  function updateState(el: HTMLElement) {
+    const bottom = el.scrollHeight - el.clientHeight;
+    const diff = bottom - el.scrollTop;
+    state.scrollTop = el.scrollTop;
+    state.isAtBottom = diff <= 0;
+    isAtBottom.value = state.isAtBottom;
+    state.isNearBottom = diff <= STICK_TO_BOTTOM_OFFSET_PX;
+    isNearBottom.value = state.isNearBottom;
+  }
 
-	function scrollToBottom(opts: ScrollToBottomOptions = {}): boolean {
-		const el = scrollRef.value;
-		const content = contentRef.value;
-		if (!el || !content) return false;
-		let target = content.offsetHeight;
-		if (options.targetScrollTop) {
-			target = options.targetScrollTop(target, {
-				scrollElement: el,
-				contentElement: content,
-			});
-		}
-		el.scrollTo({
-			top: target,
-			behavior:
-				opts.animation === "instant" ? "auto" : (opts.animation ?? "smooth"),
-		});
-		return true;
-	}
+  function scrollToBottom(opts: VueScrollToBottomOptions = {}): boolean {
+    const el = scrollRef.value;
+    const content = contentRef.value;
+    if (!el || !content) return false;
+    let target = content.offsetHeight;
+    if (options.targetScrollTop) {
+      target = options.targetScrollTop(target, {
+        scrollElement: el,
+        contentElement: content,
+      });
+    }
+    el.scrollTo({
+      top: target,
+      behavior:
+        opts.animation === 'instant' ? 'auto' : opts.animation ?? 'smooth',
+    });
+    return true;
+  }
 
-	function stopScroll() {
-		// noop - browser scrolling can't easily be stopped
-	}
+  function stopScroll() {
+    // noop - browser scrolling can't easily be stopped
+  }
 
-	onMounted(() => {
-		const el = scrollRef.value;
-		if (!el) return;
-		const handler = () => updateState(el);
-		el.addEventListener("scroll", handler);
-		handler();
-		onUnmounted(() => {
-			el.removeEventListener("scroll", handler);
-		});
-	});
+  // Auto-scroll to bottom when new content is added
+  async function autoScrollToBottom() {
+    if (!isAtBottom.value) return;
 
-	return {
-		contentRef,
-		scrollRef,
-		scrollToBottom,
-		stopScroll,
-		isAtBottom,
-		escapedFromLock,
-		state,
-	};
+    await nextTick();
+    const el = scrollRef.value;
+    if (!el) return;
+
+    // Use the resize behavior setting
+    const behavior = options.resize;
+    if (behavior === false) return;
+
+    el.scrollTo({
+      top: el.scrollHeight - el.clientHeight,
+      behavior: behavior === 'instant' ? 'auto' : behavior ?? 'smooth',
+    });
+  }
+
+  onMounted(() => {
+    const el = scrollRef.value;
+    if (!el) return;
+
+    const handler = () => updateState(el);
+    el.addEventListener('scroll', handler);
+    handler();
+
+    // Set up resize observer to auto-scroll when content changes
+    if (options.resize !== false) {
+      const resizeObserver = new ResizeObserver(() => {
+        autoScrollToBottom();
+      });
+
+      // Watch for contentRef changes and observe the new element
+      watch(
+        contentRef,
+        (newContentRef) => {
+          if (newContentRef) {
+            resizeObserver.observe(newContentRef);
+          }
+        },
+        { immediate: true }
+      );
+
+      onUnmounted(() => {
+        resizeObserver.disconnect();
+      });
+    }
+
+    onUnmounted(() => {
+      el.removeEventListener('scroll', handler);
+    });
+  });
+
+  return {
+    contentRef,
+    scrollRef,
+    scrollToBottom,
+    stopScroll,
+    isAtBottom,
+    escapedFromLock,
+    state,
+  };
 }
+
+export type {
+  VueGetTargetScrollTop,
+  VueScrollToBottom,
+  VueScrollToBottomOptions,
+  VueStickToBottomInstance,
+  VueStickToBottomOptions,
+  VueStickToBottomState,
+  VueStopScroll,
+} from './types.js';
