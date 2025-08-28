@@ -12,7 +12,10 @@ export function useFakeMessages(speed = 1) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }, []);
 
-  const getInterval = useCallback(() => getRandomInt(2 * (1 - speed), 120 * (1 - speed)), [speed]);
+  const getInterval = useCallback(
+    () => getRandomInt(2 * (1 - speed), 120 * (1 - speed)),
+    [speed]
+  );
   const getWordCount = useCallback(() => getRandomInt(10, 150), []);
   const getWords = useCallback(() => Math.round(50 * speed), [speed]);
 
@@ -37,7 +40,9 @@ export function useFakeMessages(speed = 1) {
         const newMessages = [...prevMessages];
         const text = lorem.generateWords(words);
         const lastMessage = newMessages[newMessages.length - 1];
-        lastMessage.push(Tag ? <Tag key={lastMessage.length}>{text}</Tag> : text);
+        lastMessage.push(
+          Tag ? <Tag key={lastMessage.length}>{text}</Tag> : text
+        );
         return newMessages;
       });
 

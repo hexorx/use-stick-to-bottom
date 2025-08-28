@@ -35,7 +35,7 @@ import Message from './Message.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
 import type { MessageParts } from './useFakeMessages';
 
-const props = defineProps({
+defineProps({
   messages: { type: Array as PropType<MessageParts[]>, required: true },
 });
 

@@ -37,7 +37,10 @@ function MessagesContent({ messages }: { messages: React.ReactNode[][] }) {
       </div>
 
       <div className="flex justify-center pt-4">
-        <button className="rounded bg-slate-600 text-white px-4 py-2" onClick={() => stopScroll()}>
+        <button
+          className="rounded bg-slate-600 text-white px-4 py-2"
+          onClick={() => stopScroll()}
+        >
           Stop Scroll
         </button>
       </div>
@@ -45,7 +48,13 @@ function MessagesContent({ messages }: { messages: React.ReactNode[][] }) {
   );
 }
 
-function Messages({ animation, speed }: { animation: ScrollBehavior; speed: number }) {
+function Messages({
+  animation,
+  speed,
+}: {
+  animation: ScrollBehavior;
+  speed: number;
+}) {
   const messages = useFakeMessages(speed);
 
   return (
@@ -87,5 +96,9 @@ export function Demo() {
 }
 
 function Message({ children }: { children: React.ReactNode }) {
-  return <div className="bg-gray-100 rounded-lg p-4 shadow-md break-words">{children}</div>;
+  return (
+    <div className="bg-gray-100 rounded-lg p-4 shadow-md break-words">
+      {children}
+    </div>
+  );
 }

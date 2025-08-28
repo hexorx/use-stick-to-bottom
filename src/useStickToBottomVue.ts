@@ -1,12 +1,64 @@
-import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+/*!---------------------------------------------------------------------------------------------
+ *  Copyright (c) StackBlitz. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { onUnmounted, reactive, ref, watch } from 'vue';
 import type {
-  VueScrollToBottomOptions,
+  VueAnimation,
+  VueScrollToBottom,
+  VueSpringAnimation,
   VueStickToBottomInstance,
   VueStickToBottomOptions,
   VueStickToBottomState,
+  VueStopScroll,
 } from './types.js';
 
+const DEFAULT_SPRING_ANIMATION = {
+  /**
+   * A value from 0 to 1, on how much to damp the animation.
+   * 0 means no damping, 1 means full damping.
+   *
+   * @default 0.7
+   */
+  damping: 0.7,
+
+  /**
+   * The stiffness of how fast/slow the animation gets up to speed.
+   *
+   * @default 0.05
+   */
+  stiffness: 0.05,
+
+  /**
+   * The inertial mass associated with the animation.
+   * Higher numbers make the animation slower.
+   *
+   * @default 1.25
+   */
+  mass: 1.25,
+};
+
 const STICK_TO_BOTTOM_OFFSET_PX = 70;
+const SIXTY_FPS_INTERVAL_MS = 1000 / 60;
+const RETAIN_ANIMATION_DURATION_MS = 350;
+
+let mouseDown = false;
+
+// Global mouse tracking for selection detection
+if (typeof globalThis !== 'undefined' && globalThis.document) {
+  globalThis.document.addEventListener('mousedown', () => {
+    mouseDown = true;
+  });
+
+  globalThis.document.addEventListener('mouseup', () => {
+    mouseDown = false;
+  });
+
+  globalThis.document.addEventListener('click', () => {
+    mouseDown = false;
+  });
+}
 
 export function useStickToBottom(
   options: VueStickToBottomOptions = {}
@@ -14,104 +66,414 @@ export function useStickToBottom(
   const scrollRef = ref<HTMLElement | null>(null);
   const contentRef = ref<HTMLElement | null>(null);
 
-  const isAtBottom = ref(options.initial !== false);
   const escapedFromLock = ref(false);
+  const isAtBottom = ref(options.initial !== false);
   const isNearBottom = ref(false);
 
+  const optionsRef = ref<VueStickToBottomOptions>(options);
+
+  // Keep options up to date
+  watch(
+    () => options,
+    (newOptions) => {
+      optionsRef.value = newOptions;
+    },
+    { deep: true }
+  );
+
+  const isSelecting = (): boolean => {
+    if (!mouseDown) {
+      return false;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    return (
+      (scrollRef.value
+        ? range.commonAncestorContainer.contains(scrollRef.value)
+        : false) ||
+      (scrollRef.value?.contains(range.commonAncestorContainer) ?? false)
+    );
+  };
+
+  const setIsAtBottom = (value: boolean) => {
+    state.isAtBottom = value;
+    isAtBottom.value = value;
+  };
+
+  const setEscapedFromLock = (value: boolean) => {
+    state.escapedFromLock = value;
+    escapedFromLock.value = value;
+  };
+
+  const setIsNearBottom = (value: boolean) => {
+    state.isNearBottom = value;
+    isNearBottom.value = value;
+  };
+
   const state = reactive<VueStickToBottomState>({
-    scrollTop: 0,
-    targetScrollTop: 0,
-    scrollDifference: 0,
-    resizeDifference: 0,
     escapedFromLock: escapedFromLock.value,
     isAtBottom: isAtBottom.value,
     isNearBottom: isNearBottom.value,
+    resizeDifference: 0,
+    accumulated: 0,
+    velocity: 0,
+
+    get scrollTop() {
+      return scrollRef.value?.scrollTop ?? 0;
+    },
+    set scrollTop(scrollTop: number) {
+      if (scrollRef.value) {
+        scrollRef.value.scrollTop = scrollTop;
+        state.ignoreScrollToTop = scrollRef.value.scrollTop;
+      }
+    },
+
+    get targetScrollTop() {
+      if (!scrollRef.value || !contentRef.value) {
+        return 0;
+      }
+
+      return scrollRef.value.scrollHeight - 1 - scrollRef.value.clientHeight;
+    },
+
+    get calculatedTargetScrollTop() {
+      if (!scrollRef.value || !contentRef.value) {
+        return 0;
+      }
+
+      const { targetScrollTop } = this;
+
+      if (!optionsRef.value.targetScrollTop) {
+        return targetScrollTop;
+      }
+
+      return Math.max(
+        Math.min(
+          optionsRef.value.targetScrollTop(targetScrollTop, {
+            scrollElement: scrollRef.value,
+            contentElement: contentRef.value,
+          }),
+          targetScrollTop
+        ),
+        0
+      );
+    },
+
+    get scrollDifference() {
+      return this.calculatedTargetScrollTop - this.scrollTop;
+    },
   });
 
-  function updateState(el: HTMLElement) {
-    const bottom = el.scrollHeight - el.clientHeight;
-    const diff = bottom - el.scrollTop;
-    state.scrollTop = el.scrollTop;
-    state.isAtBottom = diff <= 0;
-    isAtBottom.value = state.isAtBottom;
-    state.isNearBottom = diff <= STICK_TO_BOTTOM_OFFSET_PX;
-    isNearBottom.value = state.isNearBottom;
-  }
-
-  function scrollToBottom(opts: VueScrollToBottomOptions = {}): boolean {
-    const el = scrollRef.value;
-    const content = contentRef.value;
-    if (!el || !content) return false;
-    let target = content.offsetHeight;
-    if (options.targetScrollTop) {
-      target = options.targetScrollTop(target, {
-        scrollElement: el,
-        contentElement: content,
-      });
+  const scrollToBottom: VueScrollToBottom = (scrollOptions = {}) => {
+    if (typeof scrollOptions === 'string') {
+      scrollOptions = { animation: scrollOptions };
     }
-    el.scrollTo({
-      top: target,
-      behavior:
-        opts.animation === 'instant' ? 'auto' : opts.animation ?? 'smooth',
-    });
-    return true;
-  }
 
-  function stopScroll() {
-    // noop - browser scrolling can't easily be stopped
-  }
+    if (!scrollOptions.preserveScrollPosition) {
+      setIsAtBottom(true);
+    }
 
-  // Auto-scroll to bottom when new content is added
-  async function autoScrollToBottom() {
-    if (!isAtBottom.value) return;
+    const waitElapsed = Date.now() + (Number(scrollOptions.wait) || 0);
+    const behavior = mergeAnimations(optionsRef.value, scrollOptions.animation);
+    const { ignoreEscapes = false } = scrollOptions;
 
-    await nextTick();
-    const el = scrollRef.value;
-    if (!el) return;
+    let durationElapsed: number;
+    let startTarget = state.calculatedTargetScrollTop;
 
-    // Use the resize behavior setting
-    const behavior = options.resize;
-    if (behavior === false) return;
-
-    el.scrollTo({
-      top: el.scrollHeight - el.clientHeight,
-      behavior: behavior === 'instant' ? 'auto' : behavior ?? 'smooth',
-    });
-  }
-
-  onMounted(() => {
-    const el = scrollRef.value;
-    if (!el) return;
-
-    const handler = () => updateState(el);
-    el.addEventListener('scroll', handler);
-    handler();
-
-    // Set up resize observer to auto-scroll when content changes
-    if (options.resize !== false) {
-      const resizeObserver = new ResizeObserver(() => {
-        autoScrollToBottom();
+    if (scrollOptions.duration instanceof Promise) {
+      scrollOptions.duration.finally(() => {
+        durationElapsed = Date.now();
       });
+    } else {
+      durationElapsed = waitElapsed + (scrollOptions.duration ?? 0);
+    }
 
-      // Watch for contentRef changes and observe the new element
-      watch(
-        contentRef,
-        (newContentRef) => {
-          if (newContentRef) {
-            resizeObserver.observe(newContentRef);
+    const next = async (): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        requestAnimationFrame(() => {
+          if (!state.isAtBottom) {
+            state.animation = undefined;
+            resolve(false);
+            return;
           }
-        },
-        { immediate: true }
-      );
 
-      onUnmounted(() => {
-        resizeObserver.disconnect();
+          const { scrollTop } = state;
+          const tick = performance.now();
+          const tickDelta =
+            (tick - (state.lastTick ?? tick)) / SIXTY_FPS_INTERVAL_MS;
+
+          if (!state.animation) {
+            const promise = next();
+            state.animation = { behavior, promise, ignoreEscapes };
+          }
+
+          if (state.animation.behavior === behavior) {
+            state.lastTick = tick;
+          }
+
+          if (isSelecting()) {
+            next().then(resolve);
+            return;
+          }
+
+          if (waitElapsed > Date.now()) {
+            next().then(resolve);
+            return;
+          }
+
+          if (
+            scrollTop < Math.min(startTarget, state.calculatedTargetScrollTop)
+          ) {
+            if (state.animation?.behavior === behavior) {
+              if (behavior === 'instant') {
+                state.scrollTop = state.calculatedTargetScrollTop;
+                next().then(resolve);
+                return;
+              }
+
+              state.velocity =
+                (behavior.damping * state.velocity +
+                  behavior.stiffness * state.scrollDifference) /
+                behavior.mass;
+              state.accumulated += state.velocity * tickDelta;
+              state.scrollTop += state.accumulated;
+
+              if (state.scrollTop !== scrollTop) {
+                state.accumulated = 0;
+              }
+            }
+
+            next().then(resolve);
+            return;
+          }
+
+          if (durationElapsed > Date.now()) {
+            startTarget = state.calculatedTargetScrollTop;
+            next().then(resolve);
+            return;
+          }
+
+          state.animation = undefined;
+
+          // If we're still below the target, queue up another scroll
+          if (state.scrollTop < state.calculatedTargetScrollTop) {
+            const result = scrollToBottom({
+              animation: mergeAnimations(
+                optionsRef.value,
+                optionsRef.value.resize
+              ),
+              ignoreEscapes,
+              duration: Math.max(0, durationElapsed - Date.now()) || undefined,
+            });
+            if (result instanceof Promise) {
+              result.then(resolve);
+            } else {
+              resolve(result);
+            }
+            return;
+          }
+
+          resolve(state.isAtBottom);
+        });
+      }).then((result) => {
+        requestAnimationFrame(() => {
+          if (!state.animation) {
+            state.lastTick = undefined;
+            state.velocity = 0;
+          }
+        });
+
+        return result;
       });
+    };
+
+    if (scrollOptions.wait !== true) {
+      state.animation = undefined;
     }
 
-    onUnmounted(() => {
-      el.removeEventListener('scroll', handler);
-    });
+    if (state.animation?.behavior === behavior) {
+      return state.animation.promise;
+    }
+
+    return next();
+  };
+
+  const stopScroll: VueStopScroll = () => {
+    setEscapedFromLock(true);
+    setIsAtBottom(false);
+    state.animation = undefined;
+  };
+
+  const handleScroll = (event: Event) => {
+    if (event.target !== scrollRef.value) {
+      return;
+    }
+
+    const { scrollTop, ignoreScrollToTop } = state;
+    let { lastScrollTop = scrollTop } = state;
+
+    state.lastScrollTop = scrollTop;
+    state.ignoreScrollToTop = undefined;
+
+    if (ignoreScrollToTop && ignoreScrollToTop > scrollTop) {
+      lastScrollTop = ignoreScrollToTop;
+    }
+
+    setIsNearBottom(state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX);
+
+    // Use setTimeout to handle potential race conditions with ResizeObserver
+    setTimeout(() => {
+      if (state.resizeDifference || scrollTop === ignoreScrollToTop) {
+        return;
+      }
+
+      if (isSelecting()) {
+        setEscapedFromLock(true);
+        setIsAtBottom(false);
+        return;
+      }
+
+      const isScrollingDown = scrollTop > lastScrollTop;
+      const isScrollingUp = scrollTop < lastScrollTop;
+
+      if (state.animation?.ignoreEscapes) {
+        state.scrollTop = lastScrollTop;
+        return;
+      }
+
+      if (isScrollingUp) {
+        setEscapedFromLock(true);
+        setIsAtBottom(false);
+      }
+
+      if (isScrollingDown) {
+        setEscapedFromLock(false);
+      }
+
+      if (
+        !state.escapedFromLock &&
+        state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX
+      ) {
+        setIsAtBottom(true);
+      }
+    }, 1);
+  };
+
+  const handleWheel = (event: WheelEvent) => {
+    let element = event.target as HTMLElement;
+
+    while (!['scroll', 'auto'].includes(getComputedStyle(element).overflow)) {
+      if (!element.parentElement) {
+        return;
+      }
+      element = element.parentElement;
+    }
+
+    // Prevent scroll escape when wheel scrolled up
+    if (
+      element === scrollRef.value &&
+      event.deltaY < 0 &&
+      scrollRef.value.scrollHeight > scrollRef.value.clientHeight &&
+      !state.animation?.ignoreEscapes
+    ) {
+      setEscapedFromLock(true);
+      setIsAtBottom(false);
+    }
+  };
+
+  // Setup event listeners and ResizeObserver
+  watch(
+    scrollRef,
+    (newScrollRef, oldScrollRef) => {
+      // Remove old listeners
+      oldScrollRef?.removeEventListener('scroll', handleScroll);
+      oldScrollRef?.removeEventListener('wheel', handleWheel);
+
+      // Add new listeners
+      if (newScrollRef) {
+        newScrollRef.addEventListener('scroll', handleScroll, {
+          passive: true,
+        });
+        newScrollRef.addEventListener('wheel', handleWheel, { passive: true });
+      }
+    },
+    { immediate: true }
+  );
+
+  watch(
+    contentRef,
+    (newContentRef) => {
+      state.resizeObserver?.disconnect();
+
+      if (!newContentRef) {
+        return;
+      }
+
+      let previousHeight: number | undefined;
+
+      state.resizeObserver = new ResizeObserver(([entry]) => {
+        const { height } = entry.contentRect;
+        const difference = height - (previousHeight ?? height);
+
+        state.resizeDifference = difference;
+
+        // Check for overscroll and adjust
+        if (state.scrollTop > state.targetScrollTop) {
+          state.scrollTop = state.targetScrollTop;
+        }
+
+        setIsNearBottom(state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX);
+
+        if (difference >= 0) {
+          // Positive resize: scroll to bottom if already at bottom
+          const animation = mergeAnimations(
+            optionsRef.value,
+            previousHeight ? optionsRef.value.resize : optionsRef.value.initial
+          );
+
+          scrollToBottom({
+            animation,
+            wait: true,
+            preserveScrollPosition: true,
+            duration:
+              animation === 'instant'
+                ? undefined
+                : RETAIN_ANIMATION_DURATION_MS,
+          });
+        } else {
+          // Negative resize: check if we're near bottom
+          if (state.scrollDifference <= STICK_TO_BOTTOM_OFFSET_PX) {
+            setEscapedFromLock(false);
+            setIsAtBottom(true);
+          }
+        }
+
+        previousHeight = height;
+
+        // Reset resize difference after scroll event
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (state.resizeDifference === difference) {
+              state.resizeDifference = 0;
+            }
+          }, 1);
+        });
+      });
+
+      state.resizeObserver.observe(newContentRef);
+    },
+    { immediate: true }
+  );
+
+  onUnmounted(() => {
+    state.resizeObserver?.disconnect();
+    scrollRef.value?.removeEventListener('scroll', handleScroll);
+    scrollRef.value?.removeEventListener('wheel', handleWheel);
   });
 
   return {
@@ -120,9 +482,48 @@ export function useStickToBottom(
     scrollToBottom,
     stopScroll,
     isAtBottom,
+    isNearBottom,
     escapedFromLock,
     state,
   };
+}
+
+// Animation merging utility
+const animationCache = new Map<
+  string,
+  Readonly<Required<VueSpringAnimation>>
+>();
+
+function mergeAnimations(
+  ...animations: (VueAnimation | boolean | undefined)[]
+) {
+  const result = { ...DEFAULT_SPRING_ANIMATION };
+  let instant = false;
+
+  for (const animation of animations) {
+    if (animation === 'instant') {
+      instant = true;
+      continue;
+    }
+
+    if (typeof animation !== 'object' || animation === null) {
+      continue;
+    }
+
+    instant = false;
+
+    result.damping = animation.damping ?? result.damping;
+    result.stiffness = animation.stiffness ?? result.stiffness;
+    result.mass = animation.mass ?? result.mass;
+  }
+
+  const key = JSON.stringify(result);
+
+  if (!animationCache.has(key)) {
+    animationCache.set(key, Object.freeze(result));
+  }
+
+  return instant ? 'instant' : animationCache.get(key)!;
 }
 
 export type {
