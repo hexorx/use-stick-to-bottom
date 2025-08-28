@@ -39,8 +39,9 @@ defineProps({
   messages: { type: Array as PropType<MessageParts[]>, required: true },
 });
 
+const { stopScroll } = useStickToBottomContext();
+
 const handleStopScroll = () => {
-  const { stopScroll } = useStickToBottomContext();
   stopScroll();
 };
 </script>

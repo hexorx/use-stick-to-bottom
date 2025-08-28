@@ -51,12 +51,8 @@ const context: VueStickToBottomContext = {
   contentRef: inst.contentRef,
   scrollToBottom: inst.scrollToBottom,
   stopScroll: inst.stopScroll,
-  get isAtBottom() {
-    return inst.isAtBottom.value;
-  },
-  get escapedFromLock() {
-    return inst.escapedFromLock.value;
-  },
+  isAtBottom: inst.isAtBottom,
+  escapedFromLock: inst.escapedFromLock,
   get targetScrollTop() {
     return customTargetScrollTop.value;
   },

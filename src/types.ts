@@ -69,8 +69,8 @@ export interface VueStickToBottomContext {
   scrollRef: Ref<HTMLElement | null>;
   scrollToBottom: VueScrollToBottom;
   stopScroll: VueStopScroll;
-  isAtBottom: boolean;
-  escapedFromLock: boolean;
+  isAtBottom: Ref<boolean>;
+  escapedFromLock: Ref<boolean>;
   get targetScrollTop(): VueGetTargetScrollTop | null;
   set targetScrollTop(v: VueGetTargetScrollTop | null);
   state: VueStickToBottomState;
